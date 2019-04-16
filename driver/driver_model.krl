@@ -1,11 +1,21 @@
 ruleset driver_model {
     meta {
         use module io.picolabs.subscription alias subscription
-
         provides location, peers, peers_seen, name, ranking
+        shares __testing
     }
 
     global {
+      __testing = { "queries":
+      [ { "name": "__testing" }
+      //, { "name": "entry", "args": [ "key" ] }
+      ] , "events":
+      [ 
+       { "domain": "driver", "type": "initialize", "attrs": [ "name", "location"] }
+      //, { "domain": "d2", "type": "t2", "attrs": [ "a1", "a2" ] }
+      ]
+    }
+    
         location = function() {
             ent:location
         }

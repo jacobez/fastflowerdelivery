@@ -1,6 +1,7 @@
 ruleset flower_shop {
   meta {
-    shares __testing, getAutomaticSelection
+    shares __testing, getAutomaticSelection, getBidsReceived
+    use module io.picolabs.subscription alias wrangler_subscription
     use module io.picolabs.lesson_keys
     use module io.picolabs.twilio_v2 alias twilio
           with account_sid = keys:twilio{"account_sid"}
@@ -9,7 +10,8 @@ ruleset flower_shop {
   global {
     __testing = { "queries":
       [ { "name": "__testing" },
-      { "name": "getAutomaticSelection" }
+      { "name": "getAutomaticSelection" },
+     { "name": "getBidsReceived" }
       //, { "name": "entry", "args": [ "key" ] }
       ] , "events":
       [ { "domain": "flower_shop", "type": "reset_all" },
@@ -21,6 +23,10 @@ ruleset flower_shop {
     }
     fromSMSNumber = "+13853753036";
     driverRole = "driver"
+    
+    getBidsReceived = function() {
+      ent:bidsReceived.defaultsTo({});  
+    }
     
     getAutomaticSelection = function() {
       ent:automaticSelection.defaultsTo(true);  
@@ -43,7 +49,7 @@ ruleset flower_shop {
   rule test_send_order {
     select when flower_shop test_send_order
     fired {
-      raise flower_shop event order_received attributes {
+      raise flower_shop event "order_received" attributes {
         "order": {
           "name": event:attr("name"),
           "smsNumber": event:attr("smsNumber"),
