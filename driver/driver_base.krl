@@ -20,12 +20,12 @@ ruleset driver_base {
         // HELPERS
         //
 
-        needs_request = function(peer, messageID) {
-            model:peers_seen().get([messageID, peer{"driverID"}])
+        needs_request = function(peer, message_id) {
+            model:peers_seen().get([message_id, peer{"driverID"}])
         }
 
-        extract_message_num = function(messageID) {
-            messageID.split(re#:#)[1]
+        extract_message_num = function(message_id) {
+            message_id.split(re#:#)[1]
         }
     }
 
@@ -35,13 +35,13 @@ ruleset driver_base {
         pre {
             host = event:attr("host")
             eci = event:attr("eci")
-            messageID = event:attr("messageID")
+            message_id = event:attr("message_id")
             order = event:attr("order")
 
             eid = random:word()
             available = available()
-            message_num = extract_message_num(messageID)
-            bidID = meta:picoId + ":" + message_num
+            message_num = extract_message_num(message_id)
+            bid_id = meta:picoId + ":" + message_num
         }
 
         if available then
@@ -52,7 +52,7 @@ ruleset driver_base {
                 "type": "bid_received",
                 "attrs": {
                     "bid": {
-                        "id": bidID,
+                        "id": bid_id,
                         "driver": {
                             "name": model:name(),
                             "location": model:location(),
@@ -65,7 +65,7 @@ ruleset driver_base {
             }, host)
         
         always {
-            ent:messages := messages().put([messageID], {
+            ent:messages := messages().put([message_id], {
                 "host": host,
                 "eci": eci,
                 "order": order
@@ -77,15 +77,15 @@ ruleset driver_base {
         select when driver delivery_requested
 
         pre {
-            messageID = event:attr("messageID")
+            message_id = event:attr("message_id")
         }
 
         event:send({
             "domain": "driver",
             "type": "delivery_request_seen",
             "attrs": {
-                "driverID": meta:picoId,
-                "messageID": messageID
+                "driver_id": meta:picoId,
+                "message_id": message_id
             }
         })
     }
@@ -113,14 +113,14 @@ ruleset driver_base {
 
         pre {
             driverID = event:attr("driverID")
-            messageID = event:attr("messageID")
+            message_id = event:attr("message_id")
         }
 
         always {
             raise driver event "peers_seen_reported" attributes {
                 "report": {
                     "driverID": driverID,
-                    "messageID": messageID
+                    "message_id": message_id
                 }
             }
         }

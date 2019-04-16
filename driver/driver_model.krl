@@ -1,8 +1,8 @@
 ruleset driver_model {
     meta {
         use module io.picolabs.subscription alias subscription
+        provides location, peers, peers_seen, name, ranking
         shares __testing
-        provides location, peers, peers_seen
     }
 
     global {
@@ -31,7 +31,7 @@ ruleset driver_model {
         }
 
         updated_peers_seen = function(report) {
-            peers_seen().put([report{"messageID"}, report{"driverID"}], true)
+            peers_seen().put([report{"message_id"}, report{"driver_id"}], true)
         }
 
         ranking = function() {
