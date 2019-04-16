@@ -27,6 +27,10 @@ ruleset driver_model {
         ranking = function() {
             ent:ranking.defaultsTo(50)
         }
+
+        name = function() {
+            ent:name
+        }
     }
 
     rule update_peers_seen {
@@ -50,6 +54,20 @@ ruleset driver_model {
 
         always {
             ent:ranking := late => ranking() - 1 | ranking() + 1
+        }
+    }
+
+    rule initialize_model {
+        select when driver initialize
+
+        pre {
+            name = event:attr("name")
+            location = event:attr("location")
+        }
+
+        always {
+            ent:name := name;
+            ent:location := location;
         }
     }
 }
