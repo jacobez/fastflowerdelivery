@@ -6,6 +6,8 @@ ruleset flower_shop {
     use module io.picolabs.twilio_v2 alias twilio
           with account_sid = keys:twilio{"account_sid"}
             auth_token =  keys:twilio{"auth_token"}
+    use module distance_matrix
+          with api_key = keys:flower_shop{"google_api"}
   }
   global {
     __testing = { "queries":
@@ -23,29 +25,43 @@ ruleset flower_shop {
     }
     fromSMSNumber = "+13853753036";
     driverRole = "driver"
-    
+
     getBidsReceived = function() {
-      ent:bids.defaultsTo({});  
+      ent:bids.defaultsTo({});
     }
-    
+
     getAutomaticSelection = function() {
-      ent:automaticSelection.defaultsTo(true);  
+      ent:automaticSelection.defaultsTo(true);
     }
-    
+
     getDrivers = function() {
       wrangler_subscription:established().defaultsTo([]).filter(function(subscription) {
         subscription["Tx_role"] == driverRole;
       });
     }
-    
+
     getViableDrivers = function(order, bidsReceived) {
-      drivers = bidsReceived.map(function(value,key){
-        value{"driver"};
-      });
-      drivers;
+      shopToCustomerData = distance_matrix:queryDistance([shopLocation()], [order["location"]], unitPreference());
+      driverToShopData = distance_matrix:queryDistance(bidsReceived.map(function(bid) { bid["driver"]["location"] }), [shopLocation()], unitPreference());
+      bidsReceived.map(function(bid) {
+        bid["driver"].put(
+          ["distance"],
+          driverToShopData["rows"][driverToShopData["origin_addresses"].index(bid["driver"]["location"])]["elements"][0]["distance"]["value"]
+          + shopToCustomerData["rows"][0]["elements"][0]["distance"]["value"]
+          );
+        bid["driver"]
+      }).sort(function(driverA, driverB) {driverA{"distance"} <=> driverB{"distance"}})
+    }
+
+    shopLocation = function() {
+      ent:location.defaultsTo("")
+    }
+
+    unitPreference = function() {
+      ent:unitPreference.defaultsTo("imperial")
     }
   }
-  
+
   rule test_send_order {
     select when flower_shop test_send_order
     fired {
@@ -66,11 +82,11 @@ ruleset flower_shop {
     pre {
       tx_host = driver["Tx_host"] != null => Tx_host | meta:host;
     }
-    
+
     event:send({
-      "eci":driver["Tx"], 
-      "domain":"driver", 
-      "type":"delivery_requested", 
+      "eci":driver["Tx"],
+      "domain":"driver",
+      "type":"delivery_requested",
       "attrs":{
         "host": meta:host,
         "eci": driver["Rx"],
@@ -80,7 +96,7 @@ ruleset flower_shop {
     },tx_host);
 
     fired {
-      schedule flower_shop event "bids_closed" repeat time:add(time:now(), {"seconds": 5}) 
+      schedule flower_shop event "bids_closed" repeat time:add(time:now(), {"seconds": 5})
       attributes {
         "orderID":ent:orderID.defaultsTo(0),
         "order":event:attr("order")
@@ -88,7 +104,7 @@ ruleset flower_shop {
       ent:orderID := ent:orderID.defaultsTo(0) + 1 on final;
     }
   }
-  
+
   rule bid_received {
     select when flower_shop bid_received
     pre {
@@ -98,7 +114,7 @@ ruleset flower_shop {
       ent:bids := ent:bids.defaultsTo({}).put([bid{"id"}], bid);
     }
   }
-  
+
   rule bids_closed {
     select when flower_shop bids_closed
     pre {
@@ -109,18 +125,18 @@ ruleset flower_shop {
         event:attr("orderID") == orderID
       }).values();
     }
-    
+
     if bidsReceived.length() > 0 then every {
         send_directive("say", {"Bidding": "Closing bidding"});
     }
-    
+
     fired {
       // Get the distance matrix for the cars
       viableDrivers = getViableDrivers(event:attr("order"), bidsReceived);
-      
+
       automaticSelection = getAutomaticSelection();
       eventType = automaticSelection => "auto_select_driver" | "ask_select_driver";
-      
+
       raise flower_shop event eventType attributes {
         "order":event:attr("order"),
         "viableDrivers":viableDrivers
@@ -129,7 +145,7 @@ ruleset flower_shop {
       klog("Error, no bids were received!");
     }
   }
-  
+
   rule auto_select_driver {
     select when flower_shop auto_select_driver
     pre {
@@ -138,7 +154,7 @@ ruleset flower_shop {
       chosenDriverIndex = random:integer(drivers.length() - 1);
       driver = drivers[chosenDriverIndex];
     }
-    
+
     fired {
       raise flower_shop event "send_bid_accepted" attributes {
         "order":event:attr("order"),
@@ -146,7 +162,7 @@ ruleset flower_shop {
         };
     }
   }
-  
+
   // This used to ask the customer to select a driver. Now, the store has to do that.
 //  rule ask_select_driver {
 //    select when flower_shop ask_select_driver
@@ -154,12 +170,12 @@ ruleset flower_shop {
 //      order = event:attr("order");
 //      tx_host = event:attr("order"){"tx_host"} != null => event:attr("order"){"tx_host"} | meta:host;
 //    }
-    
+
     // Send an event to the customer asking to choose a driver
 //    event:send({
-//      "eci":order["eci"], 
-//      "domain":"customer", 
-//      "type":"select_driver", 
+//      "eci":order["eci"],
+//      "domain":"customer",
+//      "type":"select_driver",
 //      "attrs":{
 //        "host": meta:host,
 //        "drivers": event:attr("viableDrivers"),
@@ -167,7 +183,7 @@ ruleset flower_shop {
 //      }
 //    },tx_host);
 //  }
-  
+
    rule send_bid_accepted {
     select when flower_shop send_bid_accepted
     pre {
@@ -175,13 +191,13 @@ ruleset flower_shop {
       selectedDriver = event:attr("driver");
       tx_host = selectedDriver{"tx_host"} != null => selectedDriver{"tx_host"} | meta:host;
       eci = meta:eci;
-      
+
     }
 
     event:send({
-      "eci":selectedDriver{"eci"}, 
-      "domain":"driver", 
-      "type":"bid_accepted", 
+      "eci":selectedDriver{"eci"},
+      "domain":"driver",
+      "type":"bid_accepted",
       "attrs":{
         "host": meta:host,
         "eci": eci,
@@ -190,7 +206,7 @@ ruleset flower_shop {
       }
     },tx_host);
   }
-  
+
   rule bid_confirmed {
     select when flower_shop bid_confirmed
     pre {
@@ -202,19 +218,19 @@ ruleset flower_shop {
                     "Order accepted, driver " + driver["name"] +" is on his way."
                    );
   }
-  
+
   rule delivery_confirmed {
     select when flower_shop delivery_confirmed
     twilio:send_sms(order["smsNumber"],
                     fromSMSNumber,
                     "Order has been delivered by " + driver["name"] +"."
                    );
-                   
+
     // Update driver stats with gossip. Or can we let the driver do that . . . ?
-    
-    
+
+
   }
-  
+
   rule autoAccept {
     select when wrangler inbound_pending_subscription_added
     pre {
@@ -224,10 +240,10 @@ ruleset flower_shop {
       wrangler_subscription:inbound().klog("Inbound subscription");
       attributes.klog();
       raise wrangler event "pending_subscription_approval"
-          attributes attributes;       
+          attributes attributes;
     }
   }
-  
+
   rule reset_all {
     select when flower_shop reset_all
     fired {
@@ -236,7 +252,7 @@ ruleset flower_shop {
       ent:automaticSelection := true;
     }
   }
-  
+
   rule set_automatic_selection {
     select when flower_shop set_automatic_selection
     fired {
