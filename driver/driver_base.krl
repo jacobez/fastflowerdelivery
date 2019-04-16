@@ -1,9 +1,21 @@
 ruleset driver_base {
     meta {
+      shares __testing, available
         use module driver_model alias model
     }
 
     global {
+       __testing = { "queries":
+      [ { "name": "__testing" },
+      { "name": "available" }
+      //, { "name": "entry", "args": [ "key" ] }
+      ] , "events":
+      [ 
+        { "domain": "driver", "type": "reset_driver" },
+        { "domain": "driver", "type": "delivery_confirmed" }
+      //, { "domain": "d2", "type": "t2", "attrs": [ "a1", "a2" ] }
+      ]
+    }
         //
         // MODEL
         //
@@ -167,5 +179,12 @@ ruleset driver_base {
         always {
             ent:available := true
         }
+    }
+    
+    rule reset_driver {
+      select when driver reset_driver
+      fired {
+        ent:available := true
+      }
     }
 }
