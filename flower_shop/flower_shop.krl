@@ -33,9 +33,11 @@ ruleset flower_shop {
     }
     
     getViableDrivers = function(order, bidsReceived) {
-      
+      drivers = bidsReceived.map(function(value,key){
+        value{"driver"};
+      });
+      drivers;
     }
-    
   }
   
   rule test_send_order {
