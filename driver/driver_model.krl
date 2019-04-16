@@ -1,11 +1,21 @@
 ruleset driver_model {
     meta {
         use module io.picolabs.subscription alias subscription
-
+        shares __testing
         provides location, peers, peers_seen
     }
 
     global {
+      __testing = { "queries":
+      [ { "name": "__testing" }
+      //, { "name": "entry", "args": [ "key" ] }
+      ] , "events":
+      [ 
+       { "domain": "driver", "type": "initialize", "attrs": [ "name", "location"] }
+      //, { "domain": "d2", "type": "t2", "attrs": [ "a1", "a2" ] }
+      ]
+    }
+    
         location = function() {
             ent:location
         }
@@ -26,6 +36,10 @@ ruleset driver_model {
 
         ranking = function() {
             ent:ranking.defaultsTo(50)
+        }
+
+        name = function() {
+            ent:name
         }
     }
 
@@ -50,6 +64,20 @@ ruleset driver_model {
 
         always {
             ent:ranking := late => ranking() - 1 | ranking() + 1
+        }
+    }
+
+    rule initialize_model {
+        select when driver initialize
+
+        pre {
+            name = event:attr("name")
+            location = event:attr("location")
+        }
+
+        always {
+            ent:name := name;
+            ent:location := location;
         }
     }
 }
