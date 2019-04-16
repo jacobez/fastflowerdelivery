@@ -82,7 +82,7 @@ ruleset flower_shop {
     fired {
       schedule flower_shop event "bids_closed" repeat time:add(time:now(), {"seconds": 5}) 
       attributes {
-        "orderID":orderID,
+        "orderID":ent:orderID.defaultsTo(0),
         "order":event:attr("order")
       } on final;
       ent:orderID := ent:orderID.defaultsTo(0) + 1 on final;
