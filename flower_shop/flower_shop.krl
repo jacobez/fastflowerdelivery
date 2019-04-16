@@ -25,7 +25,7 @@ ruleset flower_shop {
     driverRole = "driver"
     
     getBidsReceived = function() {
-      ent:bidsReceived.defaultsTo({});  
+      ent:bids.defaultsTo({});  
     }
     
     getAutomaticSelection = function() {
@@ -174,15 +174,17 @@ ruleset flower_shop {
       order = event:attr("order");
       selectedDriver = event:attr("driver");
       tx_host = selectedDriver{"tx_host"} != null => selectedDriver{"tx_host"} | meta:host;
+      eci = meta:eci;
+      
     }
 
     event:send({
-      "eci":selectedDriver{"Tx"}, 
+      "eci":selectedDriver{"eci"}, 
       "domain":"driver", 
       "type":"bid_accepted", 
       "attrs":{
         "host": meta:host,
-        "eci": meta:eci,
+        "eci": eci,
         "order":order,
         "driver": selectedDriver
       }
