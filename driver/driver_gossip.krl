@@ -1,3 +1,0 @@
-ruleset driver_gossip {
-    
-}
