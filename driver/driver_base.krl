@@ -75,19 +75,23 @@ ruleset driver_base {
 
     rule report_seen {
         select when driver delivery_requested
+            foreach model:peers() setting(peer)
 
         pre {
             message_id = event:attr("message_id")
+            tx_host = peer{"Tx_host"}
         }
 
         event:send({
+            "eci": peer{"Tx"},
+            "eid": random:word(),
             "domain": "driver",
             "type": "delivery_request_seen",
             "attrs": {
                 "driver_id": meta:picoId,
                 "message_id": message_id
             }
-        })
+        }, tx_host)
     }
 
     rule propogate_delivery_request {
@@ -96,16 +100,18 @@ ruleset driver_base {
 
         pre {
             attributes = event:attrs
-
+            tx_host = peer{"Tx_host"}
             should_send = needs_request(peer)
         }
 
         if should_send then
             event:send({
+                "eci": peer{"Tx"},
+                "eid": random:word(),
                 "domain": "driver",
                 "type": "delivery_requested",
                 "attrs": attributes
-            })
+            }, tx_host)
     }
 
     rule handle_seen {
