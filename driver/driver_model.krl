@@ -22,7 +22,7 @@ ruleset driver_model {
 
         peers = function() {
             subscription:established().filter(function(sub) {
-                subscription{"Tx_role"} == "driver"
+                sub{"Tx_role"} == "driver"
             })
         }
 
@@ -31,7 +31,7 @@ ruleset driver_model {
         }
 
         updated_peers_seen = function(report) {
-            peers_seen().put([report{"message_id"}, report{"driver_id"}], true)
+            peers_seen().put([report{"message_id"}, report{"tx"}], true)
         }
 
         ranking = function() {

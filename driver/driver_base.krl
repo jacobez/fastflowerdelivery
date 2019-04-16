@@ -21,7 +21,8 @@ ruleset driver_base {
         //
 
         needs_request = function(peer, message_id) {
-            model:peers_seen().get([message_id, peer{"driverID"}])
+            has_seen = model:peers_seen().get([message_id, peer{"Tx"}]).as("Boolean");
+            not has_seen;
         }
 
         extract_message_num = function(message_id) {
@@ -88,7 +89,7 @@ ruleset driver_base {
             "domain": "driver",
             "type": "delivery_request_seen",
             "attrs": {
-                "driver_id": meta:picoId,
+                "tx": peer{"Rx"},
                 "message_id": message_id
             }
         }, tx_host)
@@ -101,7 +102,7 @@ ruleset driver_base {
         pre {
             attributes = event:attrs
             tx_host = peer{"Tx_host"}
-            should_send = needs_request(peer)
+            should_send = needs_request(peer, attributes{"message_id"})
         }
 
         if should_send then
@@ -118,14 +119,14 @@ ruleset driver_base {
         select when driver delivery_request_seen
 
         pre {
-            driverID = event:attr("driverID")
+            tx = event:attr("tx")
             message_id = event:attr("message_id")
         }
 
         always {
             raise driver event "peers_seen_reported" attributes {
                 "report": {
-                    "driverID": driverID,
+                    "tx": tx,
                     "message_id": message_id
                 }
             }
@@ -163,6 +164,29 @@ ruleset driver_base {
 
     rule confirm_deliver {
         select when driver delivery_confirmed
+
+        pre {
+            order_id = event:attr("order_id")
+            eci = messages(){[order_id]}{"eci"}
+            order = messages(){[order_id]}{"order"}
+        }
+
+        event:send({
+            "eci": eci,
+            "eid": random:word(),
+            "domain": "flower_shop",
+            "type": "delivery_confirmed",
+            "attrs": {
+                "order": order,
+                "driver": {
+                    "name": model:name(),
+                    "location": model:location(),
+                    "host": meta:host,
+                    "eci": meta:eci,
+                    "ranking": model:ranking()
+                }
+            }
+        })
 
         always {
             ent:available := true
