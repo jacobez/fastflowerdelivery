@@ -6,8 +6,9 @@ ruleset flower_shop {
     use module io.picolabs.twilio_v2 alias twilio
           with account_sid = keys:twilio{"account_sid"}
             auth_token =  keys:twilio{"auth_token"}
+    use module flower_secret
     use module distance_matrix
-          with api_key = keys:flower_shop{"google_api"}
+          with api_key = keys:flower_secret{"google_api"}
   }
   global {
     __testing = { "queries":
