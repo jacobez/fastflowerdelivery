@@ -23,7 +23,7 @@ ruleset flower_shop {
       //, { "domain": "d2", "type": "t2", "attrs": [ "a1", "a2" ] }
       ]
     }
-    fromSMSNumber = "+13853753036";
+    fromSMSNumber = "+17075040839";
     driverRole = "driver"
 
     getBidsReceived = function() {
@@ -221,14 +221,16 @@ ruleset flower_shop {
 
   rule delivery_confirmed {
     select when flower_shop delivery_confirmed
+
+    pre {
+      order = event:attr("order")
+      driver = event:attr("driver")
+    }
+
     twilio:send_sms(order["smsNumber"],
                     fromSMSNumber,
                     "Order has been delivered by " + driver["name"] +"."
                    );
-
-    // Update driver stats with gossip. Or can we let the driver do that . . . ?
-
-
   }
 
   rule autoAccept {
