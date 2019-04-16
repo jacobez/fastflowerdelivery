@@ -1,6 +1,6 @@
 ruleset flower_shop {
   meta {
-    shares __testing, getAutomaticSelection, getBidsReceived
+    shares __testing, getAutomaticSelection, getBidsReceived, getOrdersReceived
     use module io.picolabs.subscription alias wrangler_subscription
     use module io.picolabs.lesson_keys
     use module io.picolabs.twilio_v2 alias twilio
@@ -13,19 +13,25 @@ ruleset flower_shop {
     __testing = { "queries":
       [ { "name": "__testing" },
       { "name": "getAutomaticSelection" },
-     { "name": "getBidsReceived" }
+     { "name": "getBidsReceived" },
+     { "name": "getOrdersReceived" }
       //, { "name": "entry", "args": [ "key" ] }
       ] , "events":
       [ { "domain": "flower_shop", "type": "reset_all" },
       { "domain": "flower_shop", "type": "test_send_order", "attrs": [ "name", "smsNumber", "flowers", "location" ] },
       { "domain": "flower_shop", "type": "send_bid_accepted", "attrs": [ "order", "driver" ] },
-       { "domain": "flower_shop", "type": "set_automatic_selection", "attrs": [ "automaticSelection"] }
+       { "domain": "flower_shop", "type": "set_automatic_selection", "attrs": [ "automaticSelection"] },
+       { "domain": "flower_shop", "type": "initialize_shop", "attrs": [ "location", "preference"] }
       //, { "domain": "d2", "type": "t2", "attrs": [ "a1", "a2" ] }
       ]
     }
-    fromSMSNumber = "+17075040839";
+    fromSMSNumber = "+13853753036";
     driverRole = "driver"
 
+    getOrdersReceived = function() {
+      ent:orders.defaultsTo({});
+    }
+    
     getBidsReceived = function() {
       ent:bids.defaultsTo({});
     }
@@ -34,6 +40,10 @@ ruleset flower_shop {
       ent:automaticSelection.defaultsTo(true);
     }
 
+    getDriverPreference = function() {
+      ent:preference.defaultsTo(0);
+    }
+    
     getDrivers = function() {
       wrangler_subscription:established().defaultsTo([]).filter(function(subscription) {
         subscription["Tx_role"] == driverRole;
@@ -50,11 +60,13 @@ ruleset flower_shop {
           + shopToCustomerData["rows"][0]["elements"][0]["distance"]["value"]
           );
         bid["driver"]
+      }).filter(function(value,key){
+        value{"ranking"} >= getDriverPreference();
       }).sort(function(driverA, driverB) {driverA{"distance"} <=> driverB{"distance"}})
     }
 
     shopLocation = function() {
-      ent:location.defaultsTo("")
+      ent:location.defaultsTo("Orem, Utah")
     }
 
     unitPreference = function() {
@@ -71,7 +83,8 @@ ruleset flower_shop {
           "smsNumber": event:attr("smsNumber"),
           "flowers": event:attr("flowers"),
           "location": event:attr("location"),
-          "tx_host": meta:host
+          "tx_host": meta:host,
+          "deadline": time:add(time:now(), {"minutes": 5})
           }
         };
     }
@@ -81,6 +94,7 @@ ruleset flower_shop {
     foreach getDrivers() setting (driver)
     pre {
       tx_host = driver["Tx_host"] != null => Tx_host | meta:host;
+      order_id = meta:picoId + ":" + ent:orderID.defaultsTo(0);
     }
 
     event:send({
@@ -90,7 +104,7 @@ ruleset flower_shop {
       "attrs":{
         "host": meta:host,
         "eci": driver["Rx"],
-        "message_id": meta:picoId + ":" + ent:orderID.defaultsTo(0),
+        "message_id": order_id,
         "order":event:attr("order")
       }
     },tx_host);
@@ -101,6 +115,7 @@ ruleset flower_shop {
         "orderID":ent:orderID.defaultsTo(0),
         "order":event:attr("order")
       } on final;
+      ent:orders := ent:orders.defaultsTo({}).put([order_id], event:attr("order"));
       ent:orderID := ent:orderID.defaultsTo(0) + 1 on final;
     }
   }
@@ -251,10 +266,19 @@ ruleset flower_shop {
     fired {
       ent:bids := {};
       ent:orderID := 0;
+      ent:orders := {};
       ent:automaticSelection := true;
+      ent:location := "Orem, Utah";
     }
   }
 
+  rule initialize_shop {
+    select when flower_shop initialize_shop
+    fired {
+      ent:location := event:attr("location");
+      ent:preference := event:attr("preference");
+    }
+  }
   rule set_automatic_selection {
     select when flower_shop set_automatic_selection
     fired {

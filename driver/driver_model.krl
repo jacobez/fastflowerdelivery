@@ -2,16 +2,19 @@ ruleset driver_model {
     meta {
         use module io.picolabs.subscription alias subscription
         provides location, peers, peers_seen, name, ranking
-        shares __testing
+        shares __testing, peers_seen, peers
     }
 
     global {
       __testing = { "queries":
-      [ { "name": "__testing" }
+      [ { "name": "__testing" },
+      { "name": "peers_seen" },
+      { "name": "peers" }
       //, { "name": "entry", "args": [ "key" ] }
       ] , "events":
       [ 
-       { "domain": "driver", "type": "initialize", "attrs": [ "name", "location"] }
+       { "domain": "driver", "type": "initialize", "attrs": [ "name", "location"] },
+       { "domain": "driver", "type": "reset_driver" }
       //, { "domain": "d2", "type": "t2", "attrs": [ "a1", "a2" ] }
       ]
     }
@@ -21,8 +24,8 @@ ruleset driver_model {
         }
 
         peers = function() {
-            subscription:established().filter(function(sub) {
-                sub{"Tx_role"} == "driver"
+            subscription:established().filter(function(subscription) {
+                subscription{"Tx_role"} == "driver"
             })
         }
 
@@ -31,7 +34,7 @@ ruleset driver_model {
         }
 
         updated_peers_seen = function(report) {
-            peers_seen().put([report{"message_id"}, report{"tx"}], true)
+            peers_seen().put([report{"message_id"}, report{"driver_id"}], true)
         }
 
         ranking = function() {
@@ -79,5 +82,12 @@ ruleset driver_model {
             ent:name := name;
             ent:location := location;
         }
+    }
+    
+    rule reset_driver {
+      select when driver reset_driver
+      fired {
+        ent:peers_seen := {};
+      }
     }
 }

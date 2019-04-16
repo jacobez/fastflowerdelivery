@@ -1,18 +1,19 @@
 ruleset driver_base {
     meta {
-      shares __testing, available
+      shares __testing, available, messages
         use module driver_model alias model
     }
 
     global {
        __testing = { "queries":
       [ { "name": "__testing" },
-      { "name": "available" }
+      { "name": "available" },
+      { "name": "messages" }
       //, { "name": "entry", "args": [ "key" ] }
       ] , "events":
       [ 
         { "domain": "driver", "type": "reset_driver" },
-        { "domain": "driver", "type": "delivery_confirmed" }
+        { "domain": "driver", "type": "delivery_confirmed", "attrs": [ "order_id" ] }
       //, { "domain": "d2", "type": "t2", "attrs": [ "a1", "a2" ] }
       ]
     }
@@ -112,9 +113,9 @@ ruleset driver_base {
             foreach model:peers() setting(peer)
 
         pre {
-            attributes = event:attrs
+            eventAttributes = event:attrs
             tx_host = peer{"Tx_host"}
-            should_send = needs_request(peer, attributes{"message_id"})
+            should_send = needs_request(peer, event:attr("message_id"))
         }
 
         if should_send then
@@ -123,7 +124,7 @@ ruleset driver_base {
                 "eid": random:word(),
                 "domain": "driver",
                 "type": "delivery_requested",
-                "attrs": attributes
+                "attrs": eventAttributes
             }, tx_host)
     }
 
@@ -209,7 +210,8 @@ ruleset driver_base {
     rule reset_driver {
       select when driver reset_driver
       fired {
-        ent:available := true
+        ent:available := true;
+        ent:messages := {};
       }
     }
 }
