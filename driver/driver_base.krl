@@ -175,7 +175,7 @@ ruleset driver_base {
         }
     }
 
-    rule confirm_deliver {
+    rule confirm_delivery {
         select when driver delivery_confirmed
 
         pre {
