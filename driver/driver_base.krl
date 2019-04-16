@@ -163,8 +163,9 @@ ruleset driver_base {
             "domain": "flower_shop",
             "type": "bid_confirmed",
             "attrs": {
-                "driver": driver,
-                "confirmed": available
+              "order":order,
+              "driver": driver,
+              "confirmed": available
             }
         }, host)
 
