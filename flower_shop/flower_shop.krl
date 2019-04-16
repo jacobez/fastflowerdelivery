@@ -6,9 +6,8 @@ ruleset flower_shop {
     use module io.picolabs.twilio_v2 alias twilio
           with account_sid = keys:twilio{"account_sid"}
             auth_token =  keys:twilio{"auth_token"}
-    use module flower_secret
     use module distance_matrix
-          with api_key = keys:flower_secret{"google_api"}
+          with api_key = keys:google{"google_api"}
   }
   global {
     __testing = { "queries":
@@ -216,7 +215,7 @@ ruleset flower_shop {
     }
     twilio:send_sms(order["smsNumber"],
                     fromSMSNumber,
-                    "Order accepted, driver " + driver["name"] +" is on his way."
+                    "Order accepted: " + driver["name"] +" is on his way."
                    );
   }
 
